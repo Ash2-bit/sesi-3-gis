@@ -1,77 +1,69 @@
-# Sesi 3: Sistem Informasi Geografis (GIS) & Spatial Analytics
-**Automasi Deteksi "Blind Spot" Fasilitas Publik Berbasis Algoritma Spasial**
+# Deteksi "Blind Spot" Fasilitas Publik Berbasis Analisis Spasial (GIS)
 
-## 📖 Deskripsi Studi Kasus
-Dalam perencanaan kota pintar (*Smart City*) atau mitigasi bencana, peta visual statis tidak lagi memadai. Pengambil kebijakan membutuhkan analisis spasial (*Spatial Analytics*) yang mampu menghitung secara matematis area mana saja yang belum terjangkau oleh fasilitas esensial—seperti klinik kesehatan, pos pemadam kebakaran, atau menara telekomunikasi. 
+## Deskripsi
 
-Studi kasus ini mendemonstrasikan automasi analisis *"Blind Spot"* (titik buta layanan). Menggunakan pustaka geospasial Python, sistem tidak hanya memetakan titik koordinat, tetapi secara otomatis melakukan proyeksi sistem referensi koordinat (CRS) ke dalam satuan meter, membangun poligon radius jangkauan layanan (*buffer*), dan mengidentifikasi titik permukiman mana yang berstatus rawan karena berada di luar cakupan fasilitas terdekat.
+Proyek ini merupakan studi kasus penerapan *Spatial Analytics* menggunakan Sistem Informasi Geografis (GIS) untuk mengidentifikasi area *blind spot* (titik buta) fasilitas pelayanan publik.
+Proyek ini mengadaptasi prinsip pengolahan data geospasial tingkat lanjut yang membahas transformasi proyeksi peta, *geoprocessing* (pembuatan radius layanan), dan *spatial join* untuk mendeteksi kesenjangan infrastruktur secara objektif tanpa harus melakukan survei lapangan manual.
 
-## 🎯 Tujuan Eksekusi
-1. **Transformasi Proyeksi Koordinat (CRS):** Mengubah koordinat geografis (Derajat Lintang/Bujur - EPSG:4326) menjadi sistem proyeksi metrik (UTM - EPSG:32748) untuk akurasi perhitungan jarak nyata.
-2. **Geoprocessing (Buffering):** Membangun poligon radius pelayanan sejauh 2 kilometer secara presisi mengelilingi setiap titik fasilitas.
-3. **Analisis Topologi (Spatial Intersect/Contains):** Mengevaluasi titik-titik permukiman warga terhadap poligon jangkauan untuk mendeteksi status pelayanan (Terjangkau vs. Blind Spot).
+## Tujuan
 
-## 💻 Implementasi Kode (Python - GeoPandas & Shapely)
-Berikut adalah skrip analisis geospasialnya yang dapat dijalankan melalui file `spatial_blindspot_analysis.py`.
+Tujuan proyek ini adalah:
+1. Memproses titik koordinat mentah (Garis Lintang/Bujur) menjadi data geospasial yang dapat dihitung secara matematis.
+2. Membuat model poligon radius pelayanan berdasarkan jarak nyata (dalam satuan meter) menggunakan transformasi *Coordinate Reference System* (CRS).
+3. Menganalisis sebaran titik permukiman warga untuk mendeteksi mana yang berada di dalam cakupan layanan dan mana yang berstatus *blind spot*.
+4. Menghasilkan visualisasi peta analitik dan rasio keterjangkauan sebagai landasan pengambilan keputusan tata kota.
 
-```python
-import pandas as pd
-import geopandas as gpd
-from shapely.geometry import Point
+## Studi Kasus
 
-print("=== AUTOMASI ANALISIS BLIND SPOT LAYANAN PUBLIK ===\n")
+Pemerintah daerah Kota Bengkulu berencana mengalokasikan dana APBD untuk membangun fasilitas kesehatan (Klinik/Puskesmas) baru. Namun, mereka tidak mengetahui secara pasti wilayah permukiman mana yang saat ini paling tidak terlayani.
+Pendekatan visual murni (melihat peta secara kasat mata) sering kali memicu bias dan keputusan politik yang keliru. Oleh karena itu, proyek ini difungsikan sebagai *Decision Support System* berbasis data keruangan. Sistem akan mengalkulasi secara otomatis jarak geometris setiap blok permukiman terhadap fasilitas eksisting, guna merekomendasikan lokasi pembangunan infrastruktur baru secara presisi.
 
-# 1. Menyiapkan Data Spasial: Fasilitas Publik (Misal: Klinik di Bengkulu)
-data_klinik = {
-    'nama_fasilitas': ['Klinik Sentral', 'Klinik Utara'],
-    # Titik Koordinat Lintang/Bujur (Longitude, Latitude)
-    'geometry': [Point(102.2600, -3.8000), Point(102.2700, -3.8400)]
-}
-gdf_klinik = gpd.GeoDataFrame(data_klinik, crs="EPSG:4326")
+## Dataset
 
-# 2. Menyiapkan Data Spasial: Permukiman Warga (Titik Uji)
-data_warga = {
-    'nama_wilayah': ['Desa Alpha', 'Desa Beta', 'Desa Gamma'],
-    'geometry': [
-        Point(102.2650, -3.8050), # Dekat dengan Klinik Sentral
-        Point(102.2680, -3.8350), # Dekat dengan Klinik Utara
-        Point(102.3000, -3.9000)  # Terlalu jauh (Simulasi Blind Spot)
-    ]
-}
-gdf_warga = gpd.GeoDataFrame(data_warga, crs="EPSG:4326")
+Dataset yang digunakan merupakan dataset geospasial sintetis yang dibuat menggunakan Python (`GeoPandas` dan `NumPy`).
+Dataset terdiri dari dua komponen:
+1.  **Data Fasilitas Eksisting:** 4 titik koordinat klinik utama yang tersebar di wilayah kota.
+2.  **Data Titik Permukiman:** 300 titik sampel permukiman warga yang di- *generate* secara acak di dalam *bounding box* (batas wilayah) kota.
 
-# 3. Transformasi Sistem Referensi Koordinat (CRS)
-# Mengubah derajat Lintang/Bujur ke UTM Zone 48S (EPSG:32748) yang berbasis meter
-gdf_klinik_meter = gdf_klinik.to_crs(epsg=32748)
-gdf_warga_meter = gdf_warga.to_crs(epsg=32748)
+## Metode
 
-# 4. Geoprocessing: Membuat Radius Pelayanan (Buffer 2 Kilometer / 2000 meter)
-print("[PROSES] Menghitung radius cakupan layanan (2 Km) untuk setiap fasilitas...")
-gdf_klinik_meter['area_layanan'] = gdf_klinik_meter.geometry.buffer(2000)
+Tahapan utama yang dilakukan:
+1. *Spatial Data Generation* (Pembuatan koordinat sintetis).
+2. *CRS Transformation* (Konversi format WGS84 / EPSG:4326 ke format Universal Transverse Mercator / EPSG:32748 agar perhitungan radius menggunakan satuan meter, bukan derajat bumi).
+3. *Geoprocessing - Buffering* (Penciptaan poligon radius pelayanan sejauh 2 Kilometer dari setiap klinik).
+4. *Spatial Intersection* (Pengecekan topologi matematis untuk melihat titik permukiman mana yang beririsan dengan poligon layanan).
 
-# Menyatukan (Dissolve/Unary Union) semua radius menjadi satu poligon cakupan gabungan
-cakupan_total = gdf_klinik_meter['area_layanan'].unary_union
+## Evaluasi
 
-# 5. Analisis Spasial: Deteksi Blind Spot
-print("[PROSES] Mengevaluasi status keterjangkauan permukiman...\n")
-hasil_analisis = []
+Performa tata ruang dievaluasi menggunakan metrik pelayanan:
+*   **Service Coverage Ratio (Rasio Cakupan Layanan):** Persentase permukiman yang berada di dalam radius aman (< 2 km).
+*   **Blind Spot Count:** Jumlah klaster warga yang tidak terjangkau infrastruktur sama sekali.
+Metrik ini jauh lebih bernilai dari sekadar *Accuracy* model, karena langsung menjawab permasalahan kesetaraan (*equity*) pelayanan publik.
 
-for index, baris in gdf_warga_meter.iterrows():
-    titik_desa = baris['geometry']
-    nama_desa = baris['nama_wilayah']
-    
-    # Cek apakah titik desa berada di dalam poligon cakupan_total
-    if cakupan_total.contains(titik_desa):
-        status = "✅ AMAN (Terjangkau Fasilitas)"
-    else:
-        # Menghitung jarak ke fasilitas terdekat jika di luar cakupan
-        jarak_ke_fasilitas = gdf_klinik_meter.geometry.distance(titik_desa).min()
-        status = f"❌ BLIND SPOT (Di luar radius! Jarak terdekat: {jarak_ke_fasilitas/1000:.2f} Km)"
-        
-    hasil_analisis.append({'Wilayah': nama_desa, 'Status Pelayanan': status})
+## Teknologi
 
-# 6. Menampilkan Laporan Eksekutif
-df_laporan = pd.DataFrame(hasil_analisis)
-print("--- LAPORAN STATUS PELAYANAN WILAYAH ---")
-for idx, row in df_laporan.iterrows():
-    print(f"- {row['Wilayah']:<12}: {row['Status Pelayanan']}")
+*   Python
+*   Google Colab / Jupyter Notebook (`.ipynb`)
+*   GeoPandas
+*   Shapely
+*   Matplotlib
+
+## Cara Menjalankan
+
+1. Proyek dapat dijalankan menggunakan Google Colab.
+2. Buka file `spatial_blindspot_analysis.ipynb` menggunakan Google Colab.
+3. Pastikan *library* geospasial terinstal (biasanya sudah bawaan di Colab, jika belum gunakan `!pip install geopandas shapely`).
+4. Jalankan *notebook* dari awal hingga akhir.
+5. Peta analisis spasial lengkap dengan *legend* (keterangan cakupan) akan digambar secara otomatis pada tahap akhir.
+
+## Kesimpulan
+Proyek ini mendemonstrasikan bahwa dalam perumusan kebijakan publik, penggunaan Machine Learning tabular saja tidak cukup jika masalah yang dihadapi bersifat keruangan.
+Dengan menerapkan algoritma geospasial, kelemahan analisis tata ruang manual dapat dieliminasi. Peta luaran dari analisis ini tidak lagi sekadar menjadi ilustrasi visual, melainkan bertransformasi menjadi dokumen saintifik yang melegitimasi di mana tepatnya pemerintah harus memfokuskan pembangunan selanjutnya.
+
+## Struktur Repository
+
+```text
+sesi-3-gis/
+├── spatial_blindspot_analysis.ipynb
+├── README.md
+└── requirements.txt
